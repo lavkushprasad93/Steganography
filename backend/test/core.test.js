@@ -4,7 +4,7 @@ const assert = require("node:assert/strict");
 const { test } = require("node:test");
 const sharp = require("sharp");
 const { decodePng, encodePng, getCapacity, SteganographyError } = require("../src/core");
-const { app } = require("../src/server");
+const { app, createApp } = require("../src/server");
 
 async function coverImage(width = 128, height = 128) {
   return sharp({
@@ -17,9 +17,9 @@ async function coverImage(width = 128, height = 128) {
   }).png().toBuffer();
 }
 
-async function withApiServer(handler) {
+async function withApiServer(handler, api = app) {
   const server = await new Promise((resolve) => {
-    const listener = app.listen(0, "127.0.0.1", () => resolve(listener));
+    const listener = api.listen(0, "127.0.0.1", () => resolve(listener));
   });
   try {
     await handler(`http://127.0.0.1:${server.address().port}`);
@@ -138,4 +138,71 @@ test("API encodes and decodes without caching responses", async () => {
     assert.deepEqual(await decodedResponse.json(), { message: "API round trip" });
     assert.match(decodedResponse.headers.get("cache-control"), /no-store/);
   });
+});
+
+test("rate limits oversized JSON before parsing the request body", async () => {
+  const api = createApp({ bodyLimit: "16b" });
+  const oversizedBody = JSON.stringify({ data: "x".repeat(32) });
+
+  await withApiServer(async (baseUrl) => {
+    for (let requestNumber = 0; requestNumber < 20; requestNumber += 1) {
+      const response = await fetch(`${baseUrl}/api/encode`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: oversizedBody,
+      });
+      assert.equal(response.status, 413);
+      await response.arrayBuffer();
+    }
+
+    const limitedResponse = await fetch(`${baseUrl}/api/encode`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: oversizedBody,
+    });
+    assert.equal(limitedResponse.status, 429);
+    assert.match((await limitedResponse.json()).error, /rate limit/i);
+  }, api);
+});
+
+test("rejects jobs beyond the configured concurrency limit", async () => {
+  let releaseSlowEncode;
+  let markEncodeStarted;
+  const slowEncode = new Promise((resolve) => {
+    releaseSlowEncode = resolve;
+  });
+  const encodeStarted = new Promise((resolve) => {
+    markEncodeStarted = resolve;
+  });
+  const api = createApp({
+    maxConcurrentJobs: 1,
+    encodePng: async () => {
+      markEncodeStarted();
+      await slowEncode;
+      return Buffer.from("test image");
+    },
+  });
+  const request = () => fetch(`${baseUrl}/api/encode`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ image: "eA==", message: "test", password: "password" }),
+  });
+
+  let baseUrl;
+  await withApiServer(async (serverUrl) => {
+    baseUrl = serverUrl;
+    try {
+      const firstResponsePromise = request();
+      await encodeStarted;
+      const busyResponse = await request();
+      assert.equal(busyResponse.status, 503);
+      assert.equal(busyResponse.headers.get("retry-after"), "1");
+      assert.match((await busyResponse.json()).error, /busy/i);
+
+      releaseSlowEncode();
+      assert.equal((await firstResponsePromise).status, 200);
+    } finally {
+      releaseSlowEncode();
+    }
+  }, api);
 });
