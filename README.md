@@ -59,7 +59,7 @@ npm run dev
 Open the Vite URL (usually `http://localhost:5173`). Set `VITE_API_BASE_URL` in `frontend/.env` to select the API URL. Set `WEB_ORIGINS` in `backend/.env` to a comma-separated allowlist of exact browser origins.
 
 Run Python tests and lint with `python -m pytest -q` and `ruff check src tests`. Run API tests with `cd backend; npm test`; build the UI with `cd frontend; npm run build`.
-
+<!-- 
 ## Deploy
 
 ### Render API
@@ -75,6 +75,7 @@ VITE_API_BASE_URL=https://your-render-service.onrender.com
 ```
 
 The API only allows browser origins listed in `WEB_ORIGINS`.
+-->
 
 ## Project layout
 
