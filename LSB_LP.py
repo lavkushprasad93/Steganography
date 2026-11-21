@@ -1,6 +1,6 @@
 """Compatibility launcher for the steganography CLI."""
 
-from stegano.cli import main
+from secure_steganography.interface.cli import main
 
 
 if __name__ == "__main__":

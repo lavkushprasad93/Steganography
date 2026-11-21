@@ -152,11 +152,16 @@ async function encodePng(imageBuffer, message, password) {
     const encrypted = Buffer.concat([cipher.update(plaintext), cipher.final(), cipher.getAuthTag()]);
     const payload = Buffer.concat([header, encrypted]);
     embedPayload(channelData, payload);
-    return await sharp(channelData, {
+    const encodedPng = await sharp(channelData, {
       raw: { width: image.width, height: image.height, channels: 3 },
     })
       .png()
       .toBuffer();
+    if (encodedPng.length > MAX_IMAGE_BYTES) {
+      encodedPng.fill(0);
+      throw new SteganographyError("Encoded PNG exceeds the 5 MB limit.");
+    }
+    return encodedPng;
   } finally {
     plaintext.fill(0);
     if (key) key.fill(0);

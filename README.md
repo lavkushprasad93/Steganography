@@ -2,35 +2,38 @@
 
 **Author:** Lavkush Prasad
 
-**Version:** 2.0.0
+**Version:** 2.1.0
 
-An educational project for encrypting text with AES-256-GCM and embedding it in PNG RGB channel bits. It includes a Python CLI and a React web interface backed by a stateless Express API.
+An educational project that encrypts text with AES-256-GCM and embeds it in PNG RGB channel bits. The Python core is organized as an installable `src/` package with a CLI; the existing React frontend and Express API remain separate.
 
 ## Features
 
-- PNG-only LSB encoding with capacity validation.
+- PNG-only LSB encoding with image and capacity validation.
 - AES-256-GCM authenticated encryption and PBKDF2-HMAC-SHA256 key derivation (600,000 iterations).
-- Fresh random salt and nonce for each message.
-- Shared binary format between the Python CLI and Node API.
-- React UI for hiding and extracting messages.
-- Bounded API requests, rate limiting, same-origin configuration, and no request-body logging.
-- No database, upload directory, or intentional server-side file persistence.
+- Fresh random salt and nonce per message; the complete payload header is authenticated.
+- Python and Node implementations share the same versioned binary format.
+- React UI, stateless Express API, and Python command-line interface.
+- Automated Python/Node tests and GitHub Actions checks.
 
-## Python CLI
+## Install the Python package
 
-Requirements: Python 3.9+.
+Requirements: Python 3.11+.
 
 ```powershell
 python -m venv .venv
 .\.venv\Scripts\Activate.ps1
-python -m pip install -r requirements.txt
-python -m stegano.cli encode cover.png secret.png
-python -m stegano.cli decode secret.png
-python -m stegano.cli capacity cover.png
-python -m pytest -q
+python -m pip install -e ".[dev]"
 ```
 
-The CLI prompts for the password and message. Its output PNG is written to the path you choose.
+## Python CLI
+
+```powershell
+python -m secure_steganography encode cover.png secret.png
+python -m secure_steganography decode secret.png
+python -m secure_steganography capacity cover.png
+```
+
+The CLI prompts for the password and, when encoding, the message. The output PNG is written to the path you choose. The legacy `python LSB_LP.py ...` launcher and `stegano` console command remain available.
 
 ## Run the web app locally
 
@@ -52,44 +55,48 @@ npm ci
 npm run dev
 ```
 
-Open the Vite URL (usually `http://localhost:5173`). The frontend calls the API at `http://localhost:8000` by default. Set `VITE_API_BASE_URL` in `frontend/.env` to use another API URL. Set `WEB_ORIGINS` in `backend/.env` to a comma-separated allowlist of exact browser origins.
+Open the Vite URL (usually `http://localhost:5173`). Set `VITE_API_BASE_URL` in `frontend/.env` to select the API URL. Set `WEB_ORIGINS` in `backend/.env` to a comma-separated allowlist of exact browser origins.
 
-Run API tests with `cd backend; npm test`; build the UI with `cd frontend; npm run build`.
+Run Python tests and lint with `python -m pytest -q` and `ruff check src tests`. Run API tests with `cd backend; npm test`; build the UI with `cd frontend; npm run build`.
 
 ## Deploy
 
 ### Render API
 
-This repository includes `render.yaml`. Create a Render Blueprint from the repository, then set `WEB_ORIGINS` to the exact deployed Vercel site origin (for example `https://your-project.vercel.app`). Render supplies `PORT`.
+This repository includes `render.yaml`. Create a Render Blueprint, then set `WEB_ORIGINS` to the exact deployed Vercel site origin. Render supplies `PORT`.
 
 ### Vercel frontend
 
-Import the repository into Vercel and set the project root directory to `frontend`. Configure this environment variable:
+Import the repository into Vercel with project root `frontend` and set:
 
 ```text
 VITE_API_BASE_URL=https://your-render-service.onrender.com
 ```
 
-Redeploy the frontend after changing environment variables. The API only allows browser origins listed in `WEB_ORIGINS`.
+The API only allows browser origins listed in `WEB_ORIGINS`.
 
-## API
+## Project layout
 
-The API accepts JSON requests with a base64-encoded PNG in the `image` field:
+- `src/secure_steganography/`: Python package, separated into algorithms, cryptography, image validation, core encoding/decoding, services, and CLI.
+- `tests/`: Python unit, integration, and security tests.
+- `backend/`: Express API and Node implementation of the shared PNG format.
+- `frontend/`: React/Vite user interface.
+- `docs/`: architecture, algorithm, API, security, and user documentation.
+- `.github/workflows/tests.yml`: Python, Node API, and frontend build checks.
 
-- `GET /api/health`
-- `POST /api/capacity` with `{ "image": "..." }`
-- `POST /api/encode` with `{ "image": "...", "message": "...", "password": "..." }`; returns a PNG download.
-- `POST /api/decode` with `{ "image": "...", "password": "..." }`; returns `{ "message": "..." }`.
+## Limits and privacy
 
-Limits: 8 MB JSON request body, 5 MB encoded PNG, 4 megapixels, 1 MB UTF-8 message, and 1,024 UTF-8 password bytes. Requests are processed in memory; the API does not use a database, disk-backed upload middleware, or application-level content logging. Responses use `Cache-Control: no-store`; request references are released when the response ends.
+The hosted API accepts JSON requests up to 8 MB, PNGs up to 5 MB and 4 megapixels, messages up to 1 MB, and passwords up to 1,024 UTF-8 bytes. Web requests are processed in memory; the application does not intentionally persist request content. Hosting providers may retain operational metadata, and garbage-collected runtimes cannot guarantee immediate physical memory erasure. Avoid using the hosted demo for high-risk secrets.
 
-## Privacy and security limits
+LSB embedding is not undetectable. Resizing, filtering, screenshots, and lossy conversion can destroy the payload. Use a strong, unique password; there is no password recovery.
 
-- “Zero data retention” here means the application does not intentionally persist request content. The hosting provider may retain operational metadata such as IP addresses and request timing according to its own policy.
-- Node, Python, the image libraries, and the operating system may make internal copies. Garbage-collected runtimes cannot guarantee immediate physical erasure of passwords or plaintext from memory. Do not use this hosted demo for high-risk secrets.
-- Use HTTPS and a trusted hosting provider. Anyone operating the server can potentially inspect data while it is being processed.
-- This is not a guarantee of steganographic undetectability. LSB data can be detected; resizing, filtering, screenshots, and lossy conversion can destroy it.
-- Use a strong, unique password. There is no password recovery. The web UI keeps a recovered message visible until you clear it or leave the page.
+## Documentation
+
+- [Architecture](docs/ARCHITECTURE.md)
+- [Algorithms and payload format](docs/ALGORITHMS.md)
+- [HTTP API](docs/API.md)
+- [Security and data handling](docs/SECURITY.md)
+- [User guide](docs/USER_GUIDE.md)
 
 ## Attribution
 
