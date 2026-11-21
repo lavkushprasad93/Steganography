@@ -20,6 +20,7 @@ const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 const MAX_IMAGE_PIXELS = 4_000_000;
 const MAX_MESSAGE_BYTES = 1_000_000;
 const MAX_PASSWORD_BYTES = 1024;
+const MIN_PASSWORD_LENGTH = 12;
 
 class SteganographyError extends Error {}
 
@@ -32,42 +33,52 @@ function assertPngBuffer(imageBuffer) {
   }
 }
 
+function invalidImageError(error) {
+  if (!(error instanceof Error)) throw error;
+  return new SteganographyError("Input is not a valid PNG image.");
+}
+
 async function loadRgb(imageBuffer) {
   assertPngBuffer(imageBuffer);
 
+  let metadata;
   try {
-    const image = sharp(imageBuffer, {
+    metadata = await sharp(imageBuffer, {
       failOn: "error",
       limitInputPixels: MAX_IMAGE_PIXELS,
-    });
-    const metadata = await image.metadata();
-    if (metadata.format !== "png") {
-      throw new SteganographyError("Only PNG images are supported.");
-    }
-    if (!metadata.width || !metadata.height || metadata.width * metadata.height > MAX_IMAGE_PIXELS) {
-      throw new SteganographyError("Image dimensions exceed the 4-megapixel limit.");
-    }
-    if (metadata.pages && metadata.pages > 1) {
-      throw new SteganographyError("Animated PNG images are not supported.");
-    }
+    }).metadata();
+  } catch (error) {
+    throw invalidImageError(error);
+  }
+  if (metadata.format !== "png") {
+    throw new SteganographyError("Only PNG images are supported.");
+  }
+  if (!metadata.width || !metadata.height || metadata.width * metadata.height > MAX_IMAGE_PIXELS) {
+    throw new SteganographyError("Image dimensions exceed the 4-megapixel limit.");
+  }
+  if (metadata.pages && metadata.pages > 1) {
+    throw new SteganographyError("Animated PNG images are not supported.");
+  }
 
-    const { data, info } = await sharp(imageBuffer)
+  let decoded;
+  try {
+    decoded = await sharp(imageBuffer, {
+      failOn: "error",
+      limitInputPixels: MAX_IMAGE_PIXELS,
+    })
       .toColourspace("srgb")
       .removeAlpha()
       .raw()
       .toBuffer({ resolveWithObject: true });
-
-    if (info.channels !== 3) {
-      throw new SteganographyError("Image could not be converted to RGB.");
-    }
-    return { data, width: info.width, height: info.height };
   } catch (error) {
-    if (error instanceof SteganographyError) throw error;
-    if (error instanceof Error) {
-      throw new SteganographyError("Input is not a valid PNG image.");
-    }
-    throw error;
+    throw invalidImageError(error);
   }
+
+  const { data, info } = decoded;
+  if (info.channels !== 3) {
+    throw new SteganographyError("Image could not be converted to RGB.");
+  }
+  return { data, width: info.width, height: info.height };
 }
 
 function maximumCiphertextBytes(channelCount) {
@@ -78,7 +89,7 @@ function maximumPlaintextBytes(channelCount) {
   return Math.max(0, maximumCiphertextBytes(channelCount) - TAG_SIZE);
 }
 
-async function deriveKey(password, salt) {
+function getPasswordBytes(password, requireMinimum = false) {
   if (typeof password !== "string" || password.length === 0) {
     throw new SteganographyError("Password must not be empty.");
   }
@@ -87,6 +98,21 @@ async function deriveKey(password, salt) {
     passwordBytes.fill(0);
     throw new SteganographyError("Password must be 1024 bytes or fewer.");
   }
+  if (requireMinimum && [...password].length < MIN_PASSWORD_LENGTH) {
+    passwordBytes.fill(0);
+    throw new SteganographyError(
+      `New passwords must be at least ${MIN_PASSWORD_LENGTH} characters.`,
+    );
+  }
+  return passwordBytes;
+}
+
+function validateNewPassword(password) {
+  getPasswordBytes(password, true).fill(0);
+}
+
+async function deriveKey(password, salt) {
+  const passwordBytes = getPasswordBytes(password);
   try {
     return await pbkdf2Async(passwordBytes, salt, ITERATIONS, 32, "sha256");
   } finally {
@@ -124,6 +150,7 @@ async function encodePng(imageBuffer, message, password) {
   if (typeof message !== "string" || message.length === 0) {
     throw new SteganographyError("Message must not be empty.");
   }
+  validateNewPassword(password);
   const plaintext = Buffer.from(message, "utf8");
   if (plaintext.length > MAX_MESSAGE_BYTES) {
     plaintext.fill(0);
@@ -138,7 +165,7 @@ async function encodePng(imageBuffer, message, password) {
     const ciphertextSize = plaintext.length + TAG_SIZE;
     if (ciphertextSize > maximumCiphertextBytes(channelData.length)) {
       throw new SteganographyError(
-        `Message exceeds this image's capacity (about ${maximumPlaintextBytes(channelData.length)} bytes).`,
+        `Message exceeds this image's capacity (${maximumPlaintextBytes(channelData.length)} bytes).`,
       );
     }
 
@@ -251,6 +278,7 @@ module.exports = {
   MAX_IMAGE_BYTES,
   MAX_MESSAGE_BYTES,
   MAX_PASSWORD_BYTES,
+  MIN_PASSWORD_LENGTH,
   SteganographyError,
   decodePng,
   encodePng,

@@ -34,7 +34,7 @@ python -m secure_steganography decode secret.png --output recovered.txt
 python -m secure_steganography capacity cover.png
 ```
 
-Encoding prompts for a password twice for confirmation and, unless supplied with `--message` or `--message-file`, asks for the message interactively. Decoding prompts once; use `--output` to save recovered UTF-8 text to a file. Existing output files are not overwritten unless `--force` is supplied, and input/output paths must differ. The capacity command reports the exact maximum plaintext byte count. The legacy `python LSB_LP.py ...` launcher and `stegano` console command remain available.
+Encoding requires a password of at least 12 Unicode characters and prompts twice for confirmation. Unless supplied with `--message` or `--message-file`, it asks for the message interactively. Decoding prompts once; previously encoded messages with shorter passwords remain readable. Use `--output` to save recovered UTF-8 text to a file. Existing output files are not overwritten unless `--force` is supplied, and input/output paths must differ. The capacity command reports the exact maximum plaintext byte count. The legacy `python LSB_LP.py ...` launcher and `stegano` console command remain available.
 
 ## Run the web app locally
 

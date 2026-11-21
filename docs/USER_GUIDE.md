@@ -12,7 +12,7 @@ python -m secure_steganography decode hidden.png --output recovered.txt
 python -m secure_steganography capacity cover.png
 ```
 
-Encoding prompts for a password twice and asks for confirmation before writing. Supply `--message` for a command-line message or `--message-file` for UTF-8 text. Extraction prompts once; use `--output` to write the recovered text to a file. Existing output files are preserved unless `--force` is provided, and input/output paths must differ. Capacity reports the exact maximum plaintext bytes supported by the image; choose a PNG with enough capacity for your message.
+Encoding requires at least 12 Unicode characters in the new password, prompts twice, and asks for confirmation before writing. Supply `--message` for a command-line message or `--message-file` for UTF-8 text. Extraction prompts once and continues to accept shorter passwords used by existing images; use `--output` to write the recovered text to a file. Existing output files are preserved unless `--force` is provided, and input/output paths must differ. Capacity reports the exact maximum plaintext bytes supported by the image; choose a PNG with enough capacity for your message.
 
 ## Run the web interface
 

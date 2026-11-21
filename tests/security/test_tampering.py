@@ -9,7 +9,7 @@ from secure_steganography.utils import SteganographyError
 
 
 def test_modified_ciphertext_is_rejected(cover_png):
-    encoded = encode_png_bytes(cover_png, "secret", "password")
+    encoded = encode_png_bytes(cover_png, "secret", "correct horse battery staple")
     with Image.open(BytesIO(encoded)) as image:
         pixels = bytearray(image.convert("RGB").tobytes())
         pixels[HEADER_SIZE * 8] ^= 1
@@ -18,4 +18,4 @@ def test_modified_ciphertext_is_rejected(cover_png):
     modified.save(output, format="PNG")
 
     with pytest.raises(SteganographyError, match="Incorrect password"):
-        decode_png_bytes(output.getvalue(), "password")
+        decode_png_bytes(output.getvalue(), "correct horse battery staple")

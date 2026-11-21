@@ -27,7 +27,11 @@ def test_capacity_error_does_not_create_output(tmp_path):
     Image.new("RGB", (16, 16), (0, 0, 0)).save(output, format="PNG")
 
     with pytest.raises(SteganographyError, match="capacity"):
-        encode_png_bytes(output.getvalue(), "x" * 1_000, "password")
+        encode_png_bytes(
+            output.getvalue(),
+            "x" * 1_000,
+            "correct horse battery staple",
+        )
 
 
 def test_encode_refuses_input_alias_and_existing_output_without_force(tmp_path, cover_png):

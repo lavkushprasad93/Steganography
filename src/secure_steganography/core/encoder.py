@@ -14,14 +14,14 @@ from ..config import (
     SALT_SIZE,
 )
 from ..image_processing import load_png_image
-from ..security import encrypt_message, validate_message, validate_password
+from ..security import encrypt_message, validate_message, validate_new_password
 from ..utils import SteganographyError
 from .capacity import maximum_ciphertext_bytes
 
 
 def encode_png_bytes(image_data: bytes, message: str, password: str) -> bytes:
     plaintext = validate_message(message)
-    validate_password(password)
+    validate_new_password(password)
     image = load_png_image(image_data)
     channels = image.tobytes()
     ciphertext_size = len(plaintext) + GCM_TAG_SIZE

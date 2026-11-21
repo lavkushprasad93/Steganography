@@ -8,6 +8,7 @@ const {
   MAX_IMAGE_BYTES,
   MAX_MESSAGE_BYTES,
   MAX_PASSWORD_BYTES,
+  MIN_PASSWORD_LENGTH,
   SteganographyError,
   decodePng,
   encodePng,
@@ -60,12 +61,17 @@ function decodeImageField(value) {
   return image;
 }
 
-function validatePassword(password) {
+function validatePassword(password, requireMinimum = false) {
   if (typeof password !== "string" || password.length === 0) {
     throw new RequestError("Password must not be empty.");
   }
   if (Buffer.byteLength(password, "utf8") > MAX_PASSWORD_BYTES) {
     throw new RequestError("Password must be 1024 bytes or fewer.");
+  }
+  if (requireMinimum && [...password].length < MIN_PASSWORD_LENGTH) {
+    throw new RequestError(
+      `New passwords must be at least ${MIN_PASSWORD_LENGTH} characters.`,
+    );
   }
 }
 
@@ -165,7 +171,7 @@ function createApp(options = {}) {
       if (Buffer.byteLength(request.body.message, "utf8") > MAX_MESSAGE_BYTES) {
         throw new RequestError("Message exceeds the 1 MB limit.", 413);
       }
-      validatePassword(request.body.password);
+      validatePassword(request.body.password, true);
       image = decodeImageField(request.body.image);
       output = await encodeImage(image, request.body.message, request.body.password);
       request.body = undefined;
