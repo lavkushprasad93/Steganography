@@ -7,7 +7,7 @@ All request bodies are JSON. The `image` field is base64-encoded PNG data withou
 ## Endpoints
 
 - `GET /api/health` returns `{ "status": "ok" }`.
-- `POST /api/capacity` accepts `{ "image": "..." }` and returns image dimensions and approximate maximum plaintext bytes.
+- `POST /api/capacity` accepts `{ "image": "..." }` and returns image dimensions and maximum plaintext bytes.
 - `POST /api/encode` accepts `{ "image": "...", "message": "...", "password": "..." }` and returns an `image/png` attachment.
 - `POST /api/decode` accepts `{ "image": "...", "password": "..." }` and returns `{ "message": "..." }`.
 

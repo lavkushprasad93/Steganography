@@ -29,11 +29,12 @@ python -m pip install -e ".[dev]"
 
 ```powershell
 python -m secure_steganography encode cover.png secret.png
-python -m secure_steganography decode secret.png
+python -m secure_steganography encode cover.png secret.png --message-file message.txt
+python -m secure_steganography decode secret.png --output recovered.txt
 python -m secure_steganography capacity cover.png
 ```
 
-The CLI prompts for the password and, when encoding, the message. The output PNG is written to the path you choose. The legacy `python LSB_LP.py ...` launcher and `stegano` console command remain available.
+Encoding prompts for a password twice for confirmation and, unless supplied with `--message` or `--message-file`, asks for the message interactively. Decoding prompts once; use `--output` to save recovered UTF-8 text to a file. Existing output files are not overwritten unless `--force` is supplied, and input/output paths must differ. The capacity command reports the exact maximum plaintext byte count. The legacy `python LSB_LP.py ...` launcher and `stegano` console command remain available.
 
 ## Run the web app locally
 
