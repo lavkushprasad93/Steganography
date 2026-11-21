@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "lavkush-secure-steganography"
+version = "2.0.0"
+description = "Password-protected AES-GCM message hiding in PNG images using LSB steganography"
+readme = "README.md"
+requires-python = ">=3.9"
+authors = [{name = "Lavkush Prasad"}]
+dependencies = ["Pillow>=10.0", "cryptography>=42.0"]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0"]
+
+[project.scripts]
+stegano = "stegano.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["stegano*"]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
