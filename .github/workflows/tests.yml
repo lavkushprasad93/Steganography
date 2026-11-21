@@ -33,9 +33,9 @@ jobs:
         with:
           node-version: 22
       - run: python -m pip install -e ".[dev]"
-      - run: python -m pytest -q tests/integration/test_node_interop.py
       - run: npm ci
         working-directory: backend
+      - run: python -m pytest -q tests/integration/test_node_interop.py
       - run: npm test
         working-directory: backend
       - run: npm ci

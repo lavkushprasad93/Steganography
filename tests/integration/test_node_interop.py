@@ -9,11 +9,19 @@ import pytest
 from secure_steganography import decode_png_bytes, encode_png_bytes
 from secure_steganography.security import key_derivation
 
+BACKEND_PATH = Path(__file__).parents[2] / "backend"
+NODE_API_AVAILABLE = (
+    shutil.which("node") is not None
+    and (BACKEND_PATH / "node_modules" / "sharp").is_dir()
+)
 
-@pytest.mark.skipif(shutil.which("node") is None, reason="Node.js is required for interop testing")
+
+@pytest.mark.skipif(
+    not NODE_API_AVAILABLE,
+    reason="Node.js and backend npm dependencies are required for interop testing",
+)
 def test_python_and_node_exchange_payloads(cover_png, monkeypatch):
     monkeypatch.setattr(key_derivation, "KDF_ITERATIONS", 600_000)
-    backend = Path(__file__).parents[2] / "backend"
     message = "Python ↔ Node interop ✓"
     password = "shared-format password"
     node_encode = (
@@ -38,7 +46,7 @@ def test_python_and_node_exchange_payloads(cover_png, monkeypatch):
 
     node_encoded = subprocess.run(
         ["node", "-e", node_encode],
-        cwd=backend,
+        cwd=BACKEND_PATH,
         input=json.dumps(
             {
                 "image": base64.b64encode(cover_png).decode("ascii"),
@@ -56,7 +64,7 @@ def test_python_and_node_exchange_payloads(cover_png, monkeypatch):
     python_encoded = encode_png_bytes(cover_png, message, password)
     node_decoded = subprocess.run(
         ["node", "-e", node_decode],
-        cwd=backend,
+        cwd=BACKEND_PATH,
         input=json.dumps(
             {
                 "image": base64.b64encode(python_encoded).decode("ascii"),
