@@ -35,31 +35,39 @@ function assertPngBuffer(imageBuffer) {
 async function loadRgb(imageBuffer) {
   assertPngBuffer(imageBuffer);
 
-  const image = sharp(imageBuffer, {
-    failOn: "error",
-    limitInputPixels: MAX_IMAGE_PIXELS,
-  });
-  const metadata = await image.metadata();
-  if (metadata.format !== "png") {
-    throw new SteganographyError("Only PNG images are supported.");
-  }
-  if (!metadata.width || !metadata.height || metadata.width * metadata.height > MAX_IMAGE_PIXELS) {
-    throw new SteganographyError("Image dimensions exceed the 4-megapixel limit.");
-  }
-  if (metadata.pages && metadata.pages > 1) {
-    throw new SteganographyError("Animated PNG images are not supported.");
-  }
+  try {
+    const image = sharp(imageBuffer, {
+      failOn: "error",
+      limitInputPixels: MAX_IMAGE_PIXELS,
+    });
+    const metadata = await image.metadata();
+    if (metadata.format !== "png") {
+      throw new SteganographyError("Only PNG images are supported.");
+    }
+    if (!metadata.width || !metadata.height || metadata.width * metadata.height > MAX_IMAGE_PIXELS) {
+      throw new SteganographyError("Image dimensions exceed the 4-megapixel limit.");
+    }
+    if (metadata.pages && metadata.pages > 1) {
+      throw new SteganographyError("Animated PNG images are not supported.");
+    }
 
-  const { data, info } = await sharp(imageBuffer)
-    .toColourspace("srgb")
-    .removeAlpha()
-    .raw()
-    .toBuffer({ resolveWithObject: true });
+    const { data, info } = await sharp(imageBuffer)
+      .toColourspace("srgb")
+      .removeAlpha()
+      .raw()
+      .toBuffer({ resolveWithObject: true });
 
-  if (info.channels !== 3) {
-    throw new SteganographyError("Image could not be converted to RGB.");
+    if (info.channels !== 3) {
+      throw new SteganographyError("Image could not be converted to RGB.");
+    }
+    return { data, width: info.width, height: info.height };
+  } catch (error) {
+    if (error instanceof SteganographyError) throw error;
+    if (error instanceof Error) {
+      throw new SteganographyError("Input is not a valid PNG image.");
+    }
+    throw error;
   }
-  return { data, width: info.width, height: info.height };
 }
 
 function maximumCiphertextBytes(channelCount) {

@@ -17,6 +17,42 @@ async function coverImage(width = 128, height = 128) {
   }).png().toBuffer();
 }
 
+async function withApiServer(handler) {
+  const server = await new Promise((resolve) => {
+    const listener = app.listen(0, "127.0.0.1", () => resolve(listener));
+  });
+  try {
+    await handler(`http://127.0.0.1:${server.address().port}`);
+  } finally {
+    await new Promise((resolve, reject) => {
+      server.close((error) => (error ? reject(error) : resolve()));
+    });
+  }
+}
+
+function corruptIdat(png) {
+  const corrupted = Buffer.from(png);
+  let offset = 8;
+  while (offset + 12 <= corrupted.length) {
+    const length = corrupted.readUInt32BE(offset);
+    const type = corrupted.toString("ascii", offset + 4, offset + 8);
+    if (type === "IDAT" && length > 0) {
+      corrupted[offset + 8 + Math.floor(length / 2)] ^= 0xff;
+      return corrupted;
+    }
+    offset += length + 12;
+  }
+  throw new Error("PNG did not contain an IDAT chunk.");
+}
+
+async function postDecode(baseUrl, image) {
+  return fetch(`${baseUrl}/api/decode`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ image: image.toString("base64"), password: "not relevant" }),
+  });
+}
+
 test("encodes and decodes UTF-8 messages", async () => {
   const cover = await coverImage();
   const encoded = await encodePng(cover, "hello, こんにちは 🌍", "correct horse battery staple");
@@ -55,14 +91,30 @@ test("reports capacity and rejects messages that do not fit", async () => {
   );
 });
 
+test("API returns sanitized 400 errors for invalid PNG input", async () => {
+  const validPng = await coverImage();
+  const jpeg = await sharp(validPng).jpeg().toBuffer();
+  const malformedImages = [
+    Buffer.from("not an image"),
+    corruptIdat(validPng),
+    validPng.subarray(0, Math.floor(validPng.length / 2)),
+    jpeg,
+  ];
+
+  await withApiServer(async (baseUrl) => {
+    for (const image of malformedImages) {
+      const response = await postDecode(baseUrl, image);
+      const text = await response.text();
+      assert.equal(response.status, 400, text);
+      assert.doesNotMatch(text, /sharp|vips/i);
+      assert.equal(typeof JSON.parse(text).error, "string");
+    }
+  });
+});
+
 test("API encodes and decodes without caching responses", async () => {
   const cover = await coverImage();
-  const server = await new Promise((resolve) => {
-    const listener = app.listen(0, "127.0.0.1", () => resolve(listener));
-  });
-  const baseUrl = `http://127.0.0.1:${server.address().port}`;
-
-  try {
+  await withApiServer(async (baseUrl) => {
     const encodedResponse = await fetch(`${baseUrl}/api/encode`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -85,9 +137,5 @@ test("API encodes and decodes without caching responses", async () => {
     assert.equal(decodedResponse.status, 200);
     assert.deepEqual(await decodedResponse.json(), { message: "API round trip" });
     assert.match(decodedResponse.headers.get("cache-control"), /no-store/);
-  } finally {
-    await new Promise((resolve, reject) => {
-      server.close((error) => (error ? reject(error) : resolve()));
-    });
-  }
+  });
 });
