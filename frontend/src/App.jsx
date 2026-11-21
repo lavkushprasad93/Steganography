@@ -2,6 +2,7 @@ import React, { useRef, useState } from "react";
 
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL || "http://localhost:8000").replace(/\/+$/, "");
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
+const MIN_PASSWORD_LENGTH = 12;
 
 async function imageAsBase64(file) {
   const bytes = new Uint8Array(await file.arrayBuffer());
@@ -68,6 +69,10 @@ export default function App() {
     }
     if (!password) {
       setError("Enter your password.");
+      return;
+    }
+    if (mode === "encode" && [...password].length < MIN_PASSWORD_LENGTH) {
+      setError(`New passwords must be at least ${MIN_PASSWORD_LENGTH} characters.`);
       return;
     }
     if (mode === "encode" && !message.trim()) {
@@ -210,13 +215,18 @@ export default function App() {
             <input
               id="password"
               type="password"
-              autoComplete="new-password"
+              autoComplete={mode === "encode" ? "new-password" : "current-password"}
+              minLength={mode === "encode" ? MIN_PASSWORD_LENGTH : undefined}
               maxLength="1024"
-              placeholder="Use a strong, unique password"
+              placeholder={mode === "encode" ? "Use a strong, unique password" : "Enter the message password"}
               value={password}
               onChange={(event) => setPassword(event.target.value)}
             />
-            <span className="field-hint">The same password is required to recover the message.</span>
+            <span className="field-hint">
+              {mode === "encode"
+                ? `Use at least ${MIN_PASSWORD_LENGTH} characters. The same password is required to recover the message.`
+                : "Previously encoded messages with shorter passwords can still be recovered."}
+            </span>
           </div>
 
           {error && <p className="feedback error" role="alert">{error}</p>}

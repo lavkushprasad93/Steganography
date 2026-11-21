@@ -23,7 +23,14 @@ def load_png_image(source: str | Path | bytes) -> Image.Image:
         with Image.open(image_source) as image:
             validate_png_image(image)
             return image.convert("RGB")
-    except UnidentifiedImageError as exc:
+    except (
+        UnidentifiedImageError,
+        OSError,
+        ValueError,
+        SyntaxError,
+        Image.DecompressionBombError,
+        Image.DecompressionBombWarning,
+    ) as exc:
         raise SteganographyError("Input is not a valid PNG image.") from exc
 
 

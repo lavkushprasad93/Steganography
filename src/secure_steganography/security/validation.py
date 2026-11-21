@@ -1,4 +1,4 @@
-from ..config import MAX_MESSAGE_BYTES, MAX_PASSWORD_BYTES
+from ..config import MAX_MESSAGE_BYTES, MAX_PASSWORD_BYTES, MIN_PASSWORD_LENGTH
 from ..utils import SteganographyError
 
 
@@ -9,6 +9,14 @@ def validate_password(password: str) -> bytes:
     if len(encoded) > MAX_PASSWORD_BYTES:
         raise SteganographyError(f"Password must be {MAX_PASSWORD_BYTES} bytes or fewer.")
     return encoded
+
+
+def validate_new_password(password: str) -> None:
+    validate_password(password)
+    if len(password) < MIN_PASSWORD_LENGTH:
+        raise SteganographyError(
+            f"New passwords must be at least {MIN_PASSWORD_LENGTH} characters."
+        )
 
 
 def validate_message(message: str) -> bytes:

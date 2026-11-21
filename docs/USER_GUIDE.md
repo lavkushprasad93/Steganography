@@ -7,11 +7,12 @@ python -m venv .venv
 .\.venv\Scripts\Activate.ps1
 python -m pip install -e ".[dev]"
 python -m secure_steganography encode cover.png hidden.png
-python -m secure_steganography decode hidden.png
+python -m secure_steganography encode cover.png hidden.png --message-file message.txt
+python -m secure_steganography decode hidden.png --output recovered.txt
 python -m secure_steganography capacity cover.png
 ```
 
-Encoding prompts for a password and message. Extraction prompts for the password. Choose a PNG large enough for the message; capacity excludes the format header and GCM tag.
+Encoding requires at least 12 Unicode characters in the new password, prompts twice, and asks for confirmation before writing. Supply `--message` for a command-line message or `--message-file` for UTF-8 text. Extraction prompts once and continues to accept shorter passwords used by existing images; use `--output` to write the recovered text to a file. Existing output files are preserved unless `--force` is provided, and input/output paths must differ. Capacity reports the exact maximum plaintext bytes supported by the image; choose a PNG with enough capacity for your message.
 
 ## Run the web interface
 
